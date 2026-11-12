@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fringe countdown</title>
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fringe">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#ffd23f">
+<link href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Work+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sun: #ffd23f;
+    --ink: #1a1a40;
+    --pink: #ff4f79;
+    --teal: #2a9d8f;
+    --paper: #fffaf0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--sun);
+    color: var(--ink);
+    font-family: 'Work Sans', system-ui, sans-serif;
+    font-size: 1.3rem;
+    -webkit-text-size-adjust: 100%;
+    display: flex;
+    justify-content: center;
+    padding: calc(28px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom));
+  }
+  main { width: 100%; max-width: 560px; }
+  h1 {
+    font-family: 'Bowlby One', Impact, sans-serif;
+    font-size: 2.4rem;
+    line-height: 1.1;
+    margin: 0 0 20px;
+    transform: rotate(-2deg);
+  }
+  .ticket {
+    background: var(--paper);
+    border: 3px solid var(--ink);
+    border-radius: 14px;
+    padding: 26px 26px 24px;
+    margin-bottom: 22px;
+    box-shadow: 6px 6px 0 var(--ink);
+    position: relative;
+  }
+  .ticket::before, .ticket::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 22px; height: 22px;
+    margin-top: -11px;
+    background: var(--sun);
+    border: 3px solid var(--ink);
+    border-radius: 50%;
+  }
+  .ticket::before { left: -14px; clip-path: inset(0 0 0 50%); }
+  .ticket::after  { right: -14px; clip-path: inset(0 50% 0 0); }
+  .what { font-weight: 600; font-size: 1.4rem; margin: 0 0 6px; }
+  .num {
+    font-family: 'Bowlby One', Impact, sans-serif;
+    font-size: clamp(6rem, 34vw, 10rem);
+    line-height: 1;
+    color: var(--pink);
+  }
+  .release .num { color: var(--teal); }
+  .unit { font-family: 'Bowlby One', Impact, sans-serif; font-size: 2.2rem; }
+  .sub { margin: 10px 0 0; font-size: 1.4rem; line-height: 1.35; }
+  .waiting { font-size: 1.8rem; font-weight: 600; margin: 6px 0 0; }
+  .note { margin: 6px 0 0; font-size: 1.3rem; opacity: .85; }
+  details { margin-top: 14px; border-top: 2px dashed var(--ink); padding-top: 12px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 1.3rem; }
+  .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  input[type=date] {
+    font: inherit; padding: 12px 12px; border: 2px solid var(--ink);
+    border-radius: 8px; background: #fff; color: var(--ink); flex: 1; min-width: 150px;
+  }
+  button {
+    font: inherit; font-weight: 600; padding: 12px 18px; border: 2px solid var(--ink);
+    border-radius: 8px; background: var(--ink); color: var(--paper); cursor: pointer;
+  }
+  button.plain { background: transparent; color: var(--ink); }
+  button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--pink); outline-offset: 2px; }
+  #msg { min-height: 1.2em; margin: 8px 0 0; font-size: 1.2rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Edinburgh Fringe 2027</h1>
+
+  <section class="ticket festival" aria-live="polite">
+    <p class="what">Until the Fringe starts</p>
+    <div id="festBody">Loading…</div>
+  </section>
+
+  <section class="ticket release" aria-live="polite">
+    <p class="what">Until the first shows are released</p>
+    <div id="relBody">Loading…</div>
+    <details id="setBox">
+      <summary id="setLabel">Add the release date</summary>
+      <div class="row">
+        <input type="date" id="relInput" aria-label="Release date">
+        <button id="saveBtn">Save date</button>
+        <button class="plain" id="clearBtn">Clear</button>
+      </div>
+      <p id="msg"></p>
+    </details>
+  </section>
+</main>
+
+<script>
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  function toDate(str) {
+    const [y, m, d] = str.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  function daysUntil(str) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((toDate(str) - today) / 86400000);
+  }
+  function pretty(str) {
+    const d = toDate(str);
+    return DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+  }
+  function weeksText(n) {
+    const w = Math.floor(n / 7), r = n % 7;
+    if (w === 0) return '';
+    return 'That’s ' + w + (w === 1 ? ' week' : ' weeks') + (r ? ' and ' + r + (r === 1 ? ' day' : ' days') : '') + '. ';
+  }
+  function countdownHtml(str, todayMsg, pastMsg) {
+    const n = daysUntil(str);
+    if (n === 0) return '<p class="waiting">' + todayMsg + '</p><p class="note">' + pretty(str) + '</p>';
+    if (n < 0) return '<p class="waiting">' + pastMsg + '</p><p class="note">' + pretty(str) + '</p>';
+    return '<span class="num">' + n + '</span> <span class="unit">' + (n === 1 ? 'day' : 'days') + '</span>' +
+           '<p class="sub">' + weeksText(n) + pretty(str) + '</p>';
+  }
+
+  function render(data) {
+    document.getElementById('festBody').innerHTML =
+      countdownHtml(data.festivalStart, 'It starts today!', 'The Fringe is on.');
+
+    const rel = document.getElementById('relBody');
+    if (data.releaseDate) {
+      rel.innerHTML = countdownHtml(data.releaseDate, 'Shows are released today!', 'The first shows are out.');
+      document.getElementById('setLabel').textContent = 'Change the release date';
+      document.getElementById('relInput').value = data.releaseDate;
+    } else {
+      rel.innerHTML = '<p class="waiting">Date not announced yet</p>' +
+                      '<p class="note">Usually February. Add it below once it’s confirmed.</p>';
+      document.getElementById('setLabel').textContent = 'Add the release date';
+      document.getElementById('relInput').value = '';
+    }
+  }
+
+  const API = 'https://script.google.com/macros/s/AKfycbxONzUjksjmW-D-zmn4rNkjVag4PVDuqzv37l5fgvyZ660ZJZXMCE7h-x3d6VrD9Qs/exec';
+  const FALLBACK = { festivalStart: '2027-08-06', releaseDate: '' };
+
+  function callApi(params) {
+    return fetch(API + '?' + new URLSearchParams(params).toString())
+      .then(r => r.json())
+      .then(data => { if (data.error) throw new Error(data.error); return data; });
+  }
+
+  function save(value) {
+    const msg = document.getElementById('msg');
+    msg.textContent = 'Saving…';
+    callApi({ action: 'save', date: value })
+      .then(data => { render(data); msg.textContent = value ? 'Date saved.' : 'Date cleared.'; })
+      .catch(err => { msg.textContent = 'Couldn’t save. Check your connection and try again.'; });
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    const v = document.getElementById('relInput').value;
+    if (!v) { document.getElementById('msg').textContent = 'Pick a date first.'; return; }
+    save(v);
+  });
+  document.getElementById('clearBtn').addEventListener('click', () => save(''));
+
+  render(FALLBACK);
+  callApi({}).then(render).catch(() => {});
+</script>
+</body>
+</html>
